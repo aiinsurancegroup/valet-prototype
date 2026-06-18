@@ -545,6 +545,7 @@ function ADM() {
   var viewS = h(null); var view = viewS[0], setView = viewS[1];
   var busyS = h(false); var busy = busyS[0], setBusy = busyS[1];
   var errS = h(null); var err = errS[0], setErr = errS[1];
+  var procS = h(false); var proc = procS[0], setProc = procS[1];
   async function login(ev) {
     if (ev) ev.preventDefault();
     setErr(null); setBusy(true);
@@ -655,13 +656,78 @@ function ADM() {
     );
   }
   // LIST VIEW
+  var procModal = proc ? React.createElement("div", {
+      className: "fixed inset-0 z-50 flex items-start justify-center overflow-y-auto",
+      style: { background: "rgba(21,22,22,0.6)", padding: "40px 16px" },
+      onClick: () => setProc(false)
+    },
+    React.createElement("div", {
+        className: "bg-cream text-charcoal w-full max-w-[760px] rounded-sm shadow-xl",
+        style: { padding: "40px 44px" },
+        onClick: (e) => e.stopPropagation()
+      },
+      React.createElement("div", { className: "flex items-center justify-between mb-1" },
+        React.createElement("p", { className: "eyebrow text-brass" }, "Confidential \u00b7 Internal Staff Only"),
+        React.createElement("button", { onClick: () => setProc(false), className: "btn-ghost", style:{padding:"4px 14px"} }, "Close")),
+      React.createElement("h2", { className: "font-serif text-3xl mb-1" }, "Affiliate Payout Procedure"),
+      React.createElement("p", { className: "text-sm text-charcoal/60 mb-6" }, "How to pay an affiliate when a referred deal closes. Do not share outside the team."),
+
+      React.createElement("h3", { className: "font-serif text-xl text-brassdeep mb-2", style:{color:"#8F6F3E"} }, "How payment works"),
+      React.createElement("p", { className: "text-sm leading-relaxed mb-5" }, "Affiliates earn only when a customer they referred closes a deal and takes delivery. A submitted form is just a lead, not a closed deal. Money is never paid automatically \u2014 you approve every payout. The system already tracks who referred each lead; your job is to tell Tapfiliate when a referred deal has actually closed."),
+
+      React.createElement("h3", { className: "font-serif text-xl mb-3", style:{color:"#8F6F3E"} }, "Commission structure"),
+      React.createElement("div", { className: "mb-5 text-sm" },
+        React.createElement("div", { className: "flex justify-between py-2 border-b border-charcoal/10" },
+          React.createElement("span", null, React.createElement("strong", null, "Direct referral"), " \u2014 affiliate whose link was used"),
+          React.createElement("strong", { className: "text-brass" }, "$150")),
+        React.createElement("div", { className: "flex justify-between py-2 border-b border-charcoal/10" },
+          React.createElement("span", null, React.createElement("strong", null, "Override"), " \u2014 who recruited that affiliate (36 mo)"),
+          React.createElement("strong", { className: "text-brass" }, "$50"))),
+      React.createElement("p", { className: "text-sm leading-relaxed mb-5" },
+        React.createElement("strong", null, "Important: "), "You only enter the $150 direct referral. Tapfiliate automatically pays the $50 override to whoever recruited that affiliate. Two-tier program, single override layer."),
+
+      React.createElement("h3", { className: "font-serif text-xl mb-2", style:{color:"#8F6F3E"} }, "Before paying \u2014 confirm all three"),
+      React.createElement("ul", { className: "text-sm leading-relaxed mb-5", style:{listStyle:"disc",paddingLeft:"20px"} },
+        React.createElement("li", null, "The deal actually closed and the customer took delivery."),
+        React.createElement("li", null, "At least 30 days have passed since delivery (clawback window)."),
+        React.createElement("li", null, "The lead genuinely came from that affiliate (check the ref code on the lead).")),
+
+      React.createElement("h3", { className: "font-serif text-xl mb-2", style:{color:"#8F6F3E"} }, "How to pay (step by step)"),
+      React.createElement("ol", { className: "text-sm leading-relaxed mb-5", style:{listStyle:"decimal",paddingLeft:"20px"} },
+        React.createElement("li", null, "Find the closed deal\u2019s lead here in the admin and note its referral code."),
+        React.createElement("li", null, "Log into tapfiliate.com."),
+        React.createElement("li", null, "Left sidebar \u2192 Conversions."),
+        React.createElement("li", null, "Choose to add a conversion manually."),
+        React.createElement("li", null, "Select the affiliate matching the ref code, enter $150, add a note (customer name / deal ID)."),
+        React.createElement("li", null, "Create it. Tapfiliate auto-pays the $50 override up the chain.")),
+
+      React.createElement("h3", { className: "font-serif text-xl mb-2", style:{color:"#8F6F3E"} }, "Approving new affiliates"),
+      React.createElement("p", { className: "text-sm leading-relaxed mb-6" }, "New affiliates do not join automatically \u2014 approve each one in Tapfiliate (Affiliates tab). Vet them before they can earn. Once approved, they get their referral link."),
+
+      React.createElement("div", { style:{borderTop:"3px solid #B8935C",paddingTop:"18px",marginTop:"8px"} },
+        React.createElement("p", { className: "eyebrow text-brass mb-1" }, "Pilot Bonus \u2014 In Testing"),
+        React.createElement("h3", { className: "font-serif text-2xl mb-2" }, "Referral Milestone Bonus"),
+        React.createElement("p", { className: "text-sm leading-relaxed mb-3", style:{color:"#8E4030"} }, "Pilot incentive being tested. Terms may change or be withdrawn. Do not advertise publicly yet."),
+        React.createElement("p", { className: "text-sm leading-relaxed mb-3" },
+          React.createElement("strong", null, "The offer: "), "When a partner reaches 5 paid direct referrals, they earn a $250 down-payment credit toward their own next lease or purchase through Valet \u2014 on top of commissions already earned."),
+        React.createElement("ul", { className: "text-sm leading-relaxed mb-3", style:{listStyle:"disc",paddingLeft:"20px"} },
+          React.createElement("li", null, "Trigger = 5 direct ($150) commissions that have been PAID. Paid means closed, delivered, and 30-day-cleared, so counting paid commissions is all the tracking needed."),
+          React.createElement("li", null, "The $250 is a credit toward the partner\u2019s OWN next vehicle \u2014 not a cash payout."),
+          React.createElement("li", null, "Stacks on commissions: 5 paid = $750 earned + $250 credit."),
+          React.createElement("li", null, "Override ($50) commissions do NOT count toward the 5.")),
+        React.createElement("p", { className: "text-sm leading-relaxed" },
+          React.createElement("strong", null, "Track & honor: "), "When a partner hits 5 paid direct referrals, record the earned credit (name, date qualified, not yet used). Hold it until they lease/buy their next car through Valet, then apply $250 to their down payment and mark it used. One credit per partner per pilot."))
+    )) : null;
   return React.createElement("div", { className: "min-h-screen pt-[110px] pb-24 bg-cream" },
     React.createElement("div", { className: "max-w-[1080px] mx-auto px-6 lg:px-10" },
+      procModal,
       React.createElement("div", { className: "flex items-center justify-between mb-8 flex-wrap gap-3" },
         React.createElement("div", null,
           React.createElement("p", { className: "eyebrow" }, "Valet Admin"),
           React.createElement("h1", { className: "font-serif text-3xl lg:text-4xl" }, "Credit Applications")),
-        React.createElement("button", { onClick: refresh, disabled: busy, className: "btn-ghost" }, busy ? "..." : "Refresh")),
+        React.createElement("div", { className: "flex items-center gap-3" },
+          React.createElement("button", { onClick: () => setProc(true), className: "btn-ghost" }, "Payout Procedure"),
+          React.createElement("button", { onClick: refresh, disabled: busy, className: "btn-ghost" }, busy ? "..." : "Refresh"))),
       err ? React.createElement("p", { className: "mb-6 text-sm", style: { color: "#8E4030" } }, err) : null,
       list.length === 0
         ? React.createElement("p", { className: "text-charcoal/60" }, "No applications yet.")
