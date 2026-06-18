@@ -663,10 +663,10 @@ function ADM() {
     },
     React.createElement("div", {
         className: "bg-cream text-charcoal w-full max-w-[760px] rounded-sm shadow-xl",
-        style: { padding: "40px 44px" },
+        style: { padding: "40px 44px", maxHeight: "calc(100vh - 80px)", overflowY: "auto" },
         onClick: (e) => e.stopPropagation()
       },
-      React.createElement("div", { className: "flex items-center justify-between mb-1" },
+      React.createElement("div", { className: "flex items-center justify-between mb-1", style: { position: "sticky", top: "-2px", background: "#F4EFE3", paddingTop: "6px", paddingBottom: "10px", zIndex: 2 } },
         React.createElement("p", { className: "eyebrow text-brass" }, "Confidential \u00b7 Internal Staff Only"),
         React.createElement("button", { onClick: () => setProc(false), className: "btn-ghost", style:{padding:"4px 14px"} }, "Close")),
       React.createElement("h2", { className: "font-serif text-3xl mb-1" }, "Affiliate Payout Procedure"),
