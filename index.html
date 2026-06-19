@@ -663,12 +663,12 @@ function ADM() {
     },
     React.createElement("div", {
         className: "bg-cream text-charcoal w-full max-w-[680px] rounded-sm shadow-xl",
-        style: { padding: "28px 36px 56px", maxHeight: "calc(100vh - 56px)", overflowY: "auto", fontSize: "0.92em" },
+        style: { padding: "28px 36px 56px", maxHeight: "calc(100vh - 56px)", overflowY: "auto", fontSize: "0.92em", position: "relative" },
         onClick: (e) => e.stopPropagation()
       },
-      React.createElement("div", { className: "flex items-center justify-between", style: { position: "sticky", top: "0", background: "#F4EFE3", marginLeft: "-36px", marginRight: "-36px", marginTop: "-28px", paddingLeft: "36px", paddingRight: "36px", paddingTop: "20px", paddingBottom: "12px", marginBottom: "8px", zIndex: 5, borderBottom: "1px solid rgba(21,22,22,0.08)" } },
-        React.createElement("p", { className: "eyebrow text-brass" }, "Confidential \u00b7 Internal Staff Only"),
-        React.createElement("button", { onClick: () => setProc(false), className: "btn-ghost", style:{padding:"4px 14px"} }, "Close")),
+      React.createElement("button", { onClick: () => setProc(false), className: "btn-ghost", style: { position: "sticky", top: "0", float: "right", marginBottom: "8px", padding: "4px 14px", background: "#F4EFE3", zIndex: 10 } }, "Close"),
+      React.createElement("div", { className: "mb-2" },
+        React.createElement("p", { className: "eyebrow text-brass" }, "Confidential \u00b7 Internal Staff Only")),
       React.createElement("h2", { className: "font-serif text-3xl mb-1" }, "Affiliate Payout Procedure"),
       React.createElement("p", { className: "text-sm text-charcoal/60 mb-6" }, "How to pay an affiliate when a referred deal closes. Do not share outside the team."),
 
