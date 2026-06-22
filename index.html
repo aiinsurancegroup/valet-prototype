@@ -346,7 +346,7 @@ function CA() {
     // Required fields (everything except references, previous-employer/address, landlord, other income, "how long", dependents)
     var reqPrimary = ["primary_full_name","primary_email","primary_ssn","primary_dob",
       "primary_street","primary_city","primary_state","primary_zip","primary_years_residence",
-      "primary_residential_status","primary_monthly_payment","primary_employer_name",
+      "primary_residential_status","primary_monthly_payment","primary_landlord_name","primary_employer_name",
       "primary_employer_address","primary_gross_monthly_salary","primary_occupation",
       "primary_signature","primary_signature_date"];
     var miss = {};
@@ -358,7 +358,7 @@ function CA() {
     if (data.is_joint) {
       var reqCo = ["cosigner_full_name","cosigner_ssn","cosigner_dob",
         "cosigner_street","cosigner_city","cosigner_state","cosigner_zip","cosigner_years_residence",
-        "cosigner_residential_status","cosigner_monthly_payment","cosigner_employer_name",
+        "cosigner_residential_status","cosigner_monthly_payment","cosigner_landlord_name","cosigner_employer_name",
         "cosigner_employer_address","cosigner_gross_monthly_salary","cosigner_occupation"];
       reqCo.forEach(function (k) { if (!data[k] || String(data[k]).trim() === "") miss[k] = true; });
       if ((!data.cosigner_home_phone || !data.cosigner_home_phone.trim()) && (!data.cosigner_cell_phone || !data.cosigner_cell_phone.trim())) {
@@ -428,7 +428,7 @@ function CA() {
     caField("Cell Phone", data.primary_cell_phone, v => up("primary_cell_phone", v), { format: "phone", required: true, invalid: invalid.primary_cell_phone, type: "tel" }),
     caField("Residential Status", data.primary_residential_status, v => up("primary_residential_status", v), { required: true, invalid: invalid.primary_residential_status, placeholder: "Own / Rent" }),
     caField("Monthly Rent / Mortgage", data.primary_monthly_payment, v => up("primary_monthly_payment", v), { required: true, invalid: invalid.primary_monthly_payment, inputMode: "decimal" }),
-    caField("Landlord or Mortgage Holder's Name", data.primary_landlord_name, v => up("primary_landlord_name", v), { wide: true }),
+    caField("Landlord or Mortgage Holder's Name", data.primary_landlord_name, v => up("primary_landlord_name", v), { wide: true, required: true, invalid: invalid.primary_landlord_name }),
     caField("Previous Address (if less than 2 years)", data.primary_previous_address, v => up("primary_previous_address", v), { wide: true })
   );
   var primaryEmployment = React.createElement("div", { className: "grid md:grid-cols-2 gap-x-10 gap-y-5" },
@@ -464,7 +464,7 @@ function CA() {
       caField("Cell Phone", data.cosigner_cell_phone, v => up("cosigner_cell_phone", v), { format: "phone", required: true, invalid: invalid.cosigner_cell_phone, type: "tel" }),
       caField("Residential Status", data.cosigner_residential_status, v => up("cosigner_residential_status", v), { required: true, invalid: invalid.cosigner_residential_status }),
       caField("Monthly Rent / Mortgage", data.cosigner_monthly_payment, v => up("cosigner_monthly_payment", v), { required: true, invalid: invalid.cosigner_monthly_payment, inputMode: "decimal" }),
-      caField("Landlord or Mortgage Holder's Name", data.cosigner_landlord_name, v => up("cosigner_landlord_name", v), { wide: true }),
+      caField("Landlord or Mortgage Holder's Name", data.cosigner_landlord_name, v => up("cosigner_landlord_name", v), { wide: true, required: true, invalid: invalid.cosigner_landlord_name }),
       caField("Previous Address (if less than 2 years)", data.cosigner_previous_address, v => up("cosigner_previous_address", v), { wide: true }),
       caField("Current Employer's Name", data.cosigner_employer_name, v => up("cosigner_employer_name", v), { required: true, invalid: invalid.cosigner_employer_name, wide: true }),
       caField("Current Employer's Address", data.cosigner_employer_address, v => up("cosigner_employer_address", v), { required: true, invalid: invalid.cosigner_employer_address, wide: true }),
