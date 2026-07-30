@@ -573,50 +573,119 @@ function fmtDate(iso) {
   if (!iso) return "-";
   try { return new Date(iso).toLocaleString("en-US", { timeZone: "America/New_York" }); } catch (e) { return iso; }
 }
+var LEAD_LABEL = { credit_app: "Credit App", qualifier: "Qualifier", deal_check: "Deal Check", lease_return: "Lease Return" };
+var LEAD_TABS = ["all", "qualifier", "deal_check", "credit_app", "lease_return"];
+var STATUS_PRESETS = [
+  { key: "new", label: "New" },
+  { key: "contacted", label: "Contacted" },
+  { key: "called", label: "Called" },
+  { key: "texted", label: "Texted" },
+  { key: "closed", label: "Closed" }
+];
+function leadKey(l) { return l.source + ":" + l.id; }
 function ADM() {
   var pwS = h(""); var pw = pwS[0], setPw = pwS[1];
   var authS = h(false); var authed = authS[0], setAuthed = authS[1];
-  var listS = h([]); var list = listS[0], setList = listS[1];
+  var leadsS = h([]); var leads = leadsS[0], setLeads = leadsS[1];
   var viewS = h(null); var view = viewS[0], setView = viewS[1];
   var busyS = h(false); var busy = busyS[0], setBusy = busyS[1];
   var errS = h(null); var err = errS[0], setErr = errS[1];
   var procS = h(false); var proc = procS[0], setProc = procS[1];
+  var filtS = h("all"); var filt = filtS[0], setFilt = filtS[1];
+  var openS = h(null); var openKey = openS[0], setOpenKey = openS[1];
+  var draftS = h({}); var drafts = draftS[0], setDrafts = draftS[1];
+  var pendS = h(""); var pend = pendS[0], setPend = pendS[1];
+  var flashS = h(""); var flash = flashS[0], setFlash = flashS[1];
+
+  function patchLead(key, patch) {
+    setLeads(function (prev) {
+      return prev.map(function (l) { return leadKey(l) === key ? Object.assign({}, l, patch) : l; });
+    });
+  }
+  function draftFor(lead) {
+    var k = leadKey(lead);
+    return drafts[k] !== undefined ? drafts[k] : (lead.notes || "");
+  }
   async function login(ev) {
     if (ev) ev.preventDefault();
     setErr(null); setBusy(true);
     try {
-      var out = await adminCall(pw, { action: "list" });
-      if (out.ok) { setAuthed(true); setList(out.applications || []); }
-      else if (out.error === "unauthorized") setErr("Incorrect password.");
-      else if (out.error === "server_not_configured") setErr("Admin not configured yet \u2014 secrets must be set first.");
-      else setErr("Could not load. " + (out.error || ""));
+      var out = await adminCall(pw, { action: "list_all" });
+      if (out && out.ok) { setAuthed(true); setLeads(out.leads || []); }
+      else if (out && out.error === "unauthorized") setErr("Incorrect password.");
+      else if (out && out.error === "server_not_configured") setErr("Admin not configured yet \u2014 secrets must be set first.");
+      else setErr("Could not load. " + ((out && out.error) || ""));
     } catch (e) { setErr("Connection error."); }
     setBusy(false);
   }
   async function refresh() {
-    setBusy(true);
-    try { var out = await adminCall(pw, { action: "list" }); if (out.ok) setList(out.applications || []); } catch (e) {}
-    setBusy(false);
-  }
-  async function open(id) {
-    setBusy(true); setErr(null);
+    setBusy(true); setErr(null); setFlash("");
     try {
-      var out = await adminCall(pw, { action: "view", id: id });
-      if (out.ok) setView(out.application); else setErr("Could not open application.");
+      var out = await adminCall(pw, { action: "list_all" });
+      if (out && out.ok) setLeads(out.leads || []);
+      else setErr("Could not refresh. " + ((out && out.error) || ""));
     } catch (e) { setErr("Connection error."); }
     setBusy(false);
   }
-  async function mark(id, status) {
-    setBusy(true);
-    try { await adminCall(pw, { action: "mark", id: id, status: status }); await refresh(); if (view && view.id === id) setView(Object.assign({}, view, { status: status })); } catch (e) {}
+  async function setStatus(lead, status) {
+    var key = leadKey(lead);
+    setPend(key); setErr(null); setFlash("");
+    try {
+      var out = await adminCall(pw, { action: "mark", source: lead.source, id: lead.id, status: status });
+      if (out && out.ok) { patchLead(key, { status: status }); setFlash(key + "|Status set to " + status + "."); }
+      else setErr("Could not update status. " + ((out && out.error) || ""));
+    } catch (e) { setErr("Connection error."); }
+    setPend("");
+  }
+  async function saveNotes(lead) {
+    var key = leadKey(lead);
+    var text = draftFor(lead);
+    setPend(key); setErr(null); setFlash("");
+    try {
+      var out = await adminCall(pw, { action: "notes", source: lead.source, id: lead.id, notes: text });
+      if (out && out.ok) { patchLead(key, { notes: text }); setFlash(key + "|Notes saved."); }
+      else setErr("Could not save notes. " + ((out && out.error) || ""));
+    } catch (e) { setErr("Connection error."); }
+    setPend("");
+  }
+  async function del(lead) {
+    var who = (lead.name || "this lead") + " \u2014 " + (LEAD_LABEL[lead.source] || lead.source);
+    if (!window.confirm("Permanently delete " + who + "?\n\nThis removes the lead from the database. It cannot be undone.")) return;
+    var key = leadKey(lead);
+    setPend(key); setErr(null); setFlash("");
+    try {
+      var out = await adminCall(pw, { action: "delete", source: lead.source, id: lead.id });
+      if (out && out.ok) {
+        setLeads(function (prev) { return prev.filter(function (l) { return leadKey(l) !== key; }); });
+        if (openKey === key) setOpenKey(null);
+      } else setErr("Could not delete. " + ((out && out.error) || ""));
+    } catch (e) { setErr("Connection error."); }
+    setPend("");
+  }
+  async function openApp(id) {
+    setBusy(true); setErr(null);
+    try {
+      var out = await adminCall(pw, { action: "view", id: id });
+      if (out && out.ok) setView(out.application); else setErr("Could not open application.");
+    } catch (e) { setErr("Connection error."); }
     setBusy(false);
   }
+  async function markApp(id, status) {
+    setBusy(true);
+    try {
+      await adminCall(pw, { action: "mark", source: "credit_app", id: id, status: status });
+      patchLead("credit_app:" + id, { status: status });
+      if (view && view.id === id) setView(Object.assign({}, view, { status: status }));
+    } catch (e) {}
+    setBusy(false);
+  }
+
   // LOGIN SCREEN
   if (!authed) {
     return React.createElement("div", { className: "min-h-screen pt-[140px] pb-24 bg-charcoal text-cream" },
       React.createElement("div", { className: "max-w-sm mx-auto px-6" },
         React.createElement("p", { className: "eyebrow text-brass mb-4" }, "Valet Admin"),
-        React.createElement("h1", { className: "font-serif text-3xl mb-8" }, "Application Console"),
+        React.createElement("h1", { className: "font-serif text-3xl mb-8" }, "Lead Console"),
         React.createElement("form", { onSubmit: login },
           React.createElement("label", { className: "field-label", style: { color: "#B8935C" } }, "Password"),
           React.createElement("input", { type: "password", value: pw, onChange: e => setPw(e.target.value),
@@ -626,7 +695,8 @@ function ADM() {
             busy ? "Checking..." : "Enter")))
     );
   }
-  // DETAIL VIEW
+
+  // CREDIT APPLICATION DETAIL VIEW
   if (view) {
     function field(label, value) {
       return React.createElement("div", { className: "py-2 border-b border-charcoal/10" },
@@ -676,21 +746,22 @@ function ADM() {
     ]) : null;
     return React.createElement("div", { className: "min-h-screen pt-[110px] pb-24 bg-cream" },
       React.createElement("div", { className: "max-w-[920px] mx-auto px-6 lg:px-10" },
-        React.createElement("button", { onClick: () => setView(null), className: "text-charcoal/60 hover:text-brass-deep text-sm tracking-wide mb-6" }, "\u2190 Back to list"),
+        React.createElement("button", { onClick: () => setView(null), className: "text-charcoal/60 hover:text-brass-deep text-sm tracking-wide mb-6" }, "\u2190 Back to leads"),
         React.createElement("div", { className: "flex items-center justify-between flex-wrap gap-3" },
           React.createElement("h1", { className: "font-serif text-3xl" }, v.primary_full_name || "Application"),
           React.createElement("span", { className: "eyebrow" }, (v.is_joint ? "Joint" : "Single") + " \u00b7 " + (v.status || "new"))),
         React.createElement("p", { className: "text-charcoal/55 text-xs mt-1" }, "Received " + fmtDate(v.created_at) + (v.ref_code ? " \u00b7 Ref: " + v.ref_code : "")),
         React.createElement("div", { className: "mt-4 flex flex-wrap gap-2" },
-          React.createElement("button", { onClick: () => mark(v.id, "in_review"), className: "btn-ghost" }, "Mark In Review"),
-          React.createElement("button", { onClick: () => mark(v.id, "entered"), className: "btn-ghost" }, "Mark Entered"),
-          React.createElement("button", { onClick: () => mark(v.id, "archived"), className: "btn-ghost" }, "Archive")),
+          React.createElement("button", { onClick: () => markApp(v.id, "in_review"), className: "btn-ghost" }, "Mark In Review"),
+          React.createElement("button", { onClick: () => markApp(v.id, "entered"), className: "btn-ghost" }, "Mark Entered"),
+          React.createElement("button", { onClick: () => markApp(v.id, "archived"), className: "btn-ghost" }, "Archive")),
         primary,
         cosigner
       )
     );
   }
-  // LIST VIEW
+
+  // PAYOUT PROCEDURE MODAL
   var procModal = proc ? React.createElement("div", {
       className: "fixed inset-0 z-50 flex items-start justify-center overflow-y-auto",
       style: { background: "rgba(21,22,22,0.6)", padding: "28px 16px" },
@@ -753,32 +824,133 @@ function ADM() {
         React.createElement("p", { className: "text-sm leading-relaxed" },
           React.createElement("strong", null, "Track & honor: "), "When a partner hits 5 paid direct referrals, record the earned credit (name, date qualified, not yet used). Hold it until they lease/buy their next car through Valet, then apply $250 to their down payment and mark it used. One credit per partner per pilot."))
     )) : null;
+
+  // LEAD LIST
+  function countFor(s) {
+    if (s === "all") return leads.length;
+    var n = 0;
+    for (var i = 0; i < leads.length; i++) if (leads[i].source === s) n++;
+    return n;
+  }
+  var newCount = 0;
+  for (var ci = 0; ci < leads.length; ci++) if ((leads[ci].status || "new") === "new") newCount++;
+  var shown = filt === "all" ? leads : leads.filter(function (l) { return l.source === filt; });
+
+  var tabs = React.createElement("div", { className: "flex flex-wrap gap-2 mb-8" },
+    LEAD_TABS.map(function (s) {
+      var active = filt === s;
+      return React.createElement("button", {
+        key: s, type: "button", onClick: function () { setFilt(s); },
+        style: {
+          padding: "8px 16px", fontSize: "0.72rem", letterSpacing: "0.14em", textTransform: "uppercase",
+          border: "1px solid " + (active ? "#B8935C" : "rgba(21,22,22,0.2)"),
+          background: active ? "#B8935C" : "transparent",
+          color: active ? "#151616" : "rgba(21,22,22,0.65)", cursor: "pointer"
+        }
+      }, (s === "all" ? "All" : LEAD_LABEL[s]) + " (" + countFor(s) + ")");
+    })
+  );
+
+  function rowFor(lead) {
+    var key = leadKey(lead);
+    var isOpen = openKey === key;
+    var working = pend === key;
+    var status = lead.status || "new";
+    var pillBg = status === "closed" ? "#3C5D45" : status === "new" ? "#B8935C" : "#6b6b68";
+    var contact = [lead.phone, lead.email].filter(Boolean).join("  \u00b7  ");
+    var flashMsg = (flash && flash.indexOf(key + "|") === 0) ? flash.slice(key.length + 1) : null;
+    var draftVal = draftFor(lead);
+    var dirty = draftVal !== (lead.notes || "");
+
+    var header = React.createElement("div", {
+        onClick: function () { setOpenKey(isOpen ? null : key); setFlash(""); },
+        className: "py-4 flex items-start justify-between gap-4 cursor-pointer hover:bg-cream-warm transition-colors"
+      },
+      React.createElement("div", { style: { minWidth: 0 } },
+        React.createElement("div", { className: "flex items-center gap-3 flex-wrap" },
+          React.createElement("span", { className: "font-serif text-lg" }, lead.name || "(no name)"),
+          React.createElement("span", { className: "eyebrow", style: { color: "#8F6F3E" } }, LEAD_LABEL[lead.source] || lead.source)),
+        React.createElement("div", { className: "text-charcoal/60 text-sm mt-1" }, contact || "\u2014"),
+        lead.detail ? React.createElement("div", { className: "text-charcoal/50 text-sm mt-0.5" }, lead.detail) : null),
+      React.createElement("div", { className: "text-right", style: { flexShrink: 0 } },
+        React.createElement("span", { style: { background: pillBg, color: "#F4EFE3", fontSize: "0.62rem", letterSpacing: "0.14em", textTransform: "uppercase", padding: "3px 9px", whiteSpace: "nowrap" } }, status),
+        React.createElement("div", { className: "text-charcoal/55 text-xs mt-2" }, fmtDate(lead.created_at)),
+        React.createElement("div", { className: "text-charcoal/40 text-xs mt-1" }, isOpen ? "\u2013 Close" : "+ Open"))
+    );
+
+    var panel = !isOpen ? null : React.createElement("div", { className: "pb-7 pt-1" },
+      React.createElement("div", { className: "flex flex-wrap gap-x-8 gap-y-2 mb-6 text-sm" },
+        lead.phone ? React.createElement("a", { href: "tel:" + String(lead.phone).replace(/[^0-9+]/g, ""), className: "text-charcoal hover:text-brass-deep" }, "Call " + lead.phone) : null,
+        lead.email ? React.createElement("a", { href: "mailto:" + lead.email, className: "text-charcoal hover:text-brass-deep" }, "Email " + lead.email) : null,
+        lead.location ? React.createElement("span", { className: "text-charcoal/60" }, lead.location) : null,
+        lead.ref_code ? React.createElement("span", { className: "text-charcoal/60" }, "Ref: " + lead.ref_code) : null),
+
+      React.createElement("div", { className: "field-label mb-2" }, "Status"),
+      React.createElement("div", { className: "flex flex-wrap gap-2 mb-7" },
+        STATUS_PRESETS.map(function (sp) {
+          var active = status === sp.key;
+          return React.createElement("button", {
+            key: sp.key, type: "button", disabled: working,
+            onClick: function () { setStatus(lead, sp.key); },
+            style: {
+              padding: "7px 15px", fontSize: "0.72rem", letterSpacing: "0.12em", textTransform: "uppercase",
+              border: "1px solid " + (active ? "#B8935C" : "rgba(21,22,22,0.22)"),
+              background: active ? "#B8935C" : "transparent",
+              color: active ? "#151616" : "rgba(21,22,22,0.7)",
+              cursor: working ? "wait" : "pointer", opacity: working ? 0.5 : 1
+            }
+          }, sp.label);
+        })),
+
+      React.createElement("div", { className: "field-label mb-2" }, "Notes"),
+      React.createElement("textarea", {
+        value: draftVal, rows: 3,
+        onChange: function (e) {
+          var val = e.target.value;
+          setDrafts(function (p) { var n = Object.assign({}, p); n[key] = val; return n; });
+        },
+        placeholder: "Call notes, next step, numbers quoted\u2026",
+        style: {
+          width: "100%", background: "#FBF8F1", border: "1px solid rgba(21,22,22,0.18)",
+          padding: "10px 12px", fontSize: "0.9rem", lineHeight: 1.55, color: "#151616",
+          fontFamily: "inherit", resize: "vertical"
+        }
+      }),
+      React.createElement("div", { className: "mt-4 flex flex-wrap gap-3 items-center" },
+        React.createElement("button", { type: "button", onClick: function () { saveNotes(lead); }, disabled: working || !dirty, className: "btn-ghost disabled:opacity-40" },
+          working ? "Saving\u2026" : (dirty ? "Save Notes" : "Notes Saved")),
+        lead.source === "credit_app" ? React.createElement("button", { type: "button", onClick: function () { openApp(lead.id); }, className: "btn-ghost" }, "Open Full Application") : null,
+        React.createElement("button", {
+          type: "button", onClick: function () { del(lead); }, disabled: working,
+          style: {
+            padding: "9px 18px", fontSize: "0.72rem", letterSpacing: "0.14em", textTransform: "uppercase",
+            border: "1px solid rgba(142,64,48,0.5)", background: "transparent", color: "#8E4030",
+            cursor: working ? "wait" : "pointer", opacity: working ? 0.5 : 1, marginLeft: "auto"
+          }
+        }, "Delete Lead"),
+        flashMsg ? React.createElement("span", { className: "text-sm", style: { color: "#3C5D45" } }, flashMsg) : null)
+    );
+
+    return React.createElement("div", { key: key, className: "border-b border-charcoal/15" }, header, panel);
+  }
+
   return React.createElement("div", { className: "min-h-screen pt-[110px] pb-24 bg-cream" },
     React.createElement("div", { className: "max-w-[1080px] mx-auto px-6 lg:px-10" },
       procModal,
-      React.createElement("div", { className: "flex items-center justify-between mb-8 flex-wrap gap-3" },
+      React.createElement("div", { className: "flex items-center justify-between mb-3 flex-wrap gap-3" },
         React.createElement("div", null,
           React.createElement("p", { className: "eyebrow" }, "Valet Admin"),
-          React.createElement("h1", { className: "font-serif text-3xl lg:text-4xl" }, "Credit Applications")),
+          React.createElement("h1", { className: "font-serif text-3xl lg:text-4xl" }, "Lead Console")),
         React.createElement("div", { className: "flex items-center gap-3" },
           React.createElement("button", { onClick: () => setProc(true), className: "btn-ghost" }, "Payout Procedure"),
           React.createElement("button", { onClick: refresh, disabled: busy, className: "btn-ghost" }, busy ? "..." : "Refresh"))),
+      React.createElement("p", { className: "text-charcoal/55 text-sm mb-8" },
+        leads.length + " lead" + (leads.length === 1 ? "" : "s") + " \u00b7 " + newCount + " new \u00b7 all four intake forms"),
+      tabs,
       err ? React.createElement("p", { className: "mb-6 text-sm", style: { color: "#8E4030" } }, err) : null,
-      list.length === 0
-        ? React.createElement("p", { className: "text-charcoal/60" }, "No applications yet.")
-        : React.createElement("div", { className: "border-t border-charcoal/15" },
-            list.map(function (a) {
-              return React.createElement("button", { key: a.id, onClick: () => open(a.id),
-                className: "w-full text-left py-4 border-b border-charcoal/15 flex items-center justify-between gap-4 hover:bg-cream-warm transition-colors" },
-                React.createElement("div", null,
-                  React.createElement("div", { className: "font-serif text-lg" }, a.primary_full_name || "(no name)"),
-                  React.createElement("div", { className: "text-charcoal/60 text-sm" },
-                    (a.is_joint ? "Joint" : "Single") + " \u00b7 " + (a.primary_city || "") + (a.primary_state ? ", " + a.primary_state : "") + (a.primary_cell_phone ? " \u00b7 " + a.primary_cell_phone : ""))),
-                React.createElement("div", { className: "text-right" },
-                  React.createElement("div", { className: "eyebrow" }, a.status || "new"),
-                  React.createElement("div", { className: "text-charcoal/55 text-xs mt-1" }, fmtDate(a.created_at))));
-            })
-          )
+      shown.length === 0
+        ? React.createElement("p", { className: "text-charcoal/60" }, leads.length === 0 ? "No leads yet." : "No leads in this category.")
+        : React.createElement("div", { className: "border-t border-charcoal/15" }, shown.map(rowFor))
     )
   );
 }
