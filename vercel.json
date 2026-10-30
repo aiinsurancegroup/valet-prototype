@@ -24,11 +24,11 @@
   "rewrites": [
     {
       "source": "/qualifier",
-      "destination": "/index.html"
+      "destination": "/"
     },
     {
       "source": "/deal-check",
-      "destination": "/index.html"
+      "destination": "/"
     }
   ]
 }
