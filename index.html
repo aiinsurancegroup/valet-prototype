@@ -265,6 +265,51 @@ input, button, select, textarea { font: inherit; color: inherit; }
 {"@context":"https://schema.org","@type":"AutomotiveBusiness","@id":"https://www.valetautoleasing.com/#business","name":"Valet Auto Leasing","alternateName":"Valet Auto Leasing, a division of All State Auto Leasing & Finance","url":"https://www.valetautoleasing.com/","telephone":"+19173019046","description":"A no-fee car buying and leasing service for new cars. We find, negotiate and deliver your car so you never visit a dealership. The dealer pays us, not you.","slogan":"Your personal car valet.","priceRange":"Free to customers","areaServed":[{"@type":"City","name":"New York City"},{"@type":"AdministrativeArea","name":"Nassau County, NY"},{"@type":"AdministrativeArea","name":"Suffolk County, NY"},{"@type":"AdministrativeArea","name":"Westchester County, NY"},{"@type":"State","name":"New Jersey"}],"parentOrganization":{"@type":"Organization","name":"All State Auto Leasing & Finance"}}
 </script>
 <meta name="google-site-verification" content="j38cLlkgS4z2aUJystJxUDHxD7lWib_pePS-qoTMoUI" />
+<script>
+window.valCreditPdf = function (v) {
+  function run() {
+    try {
+      var J = window.jspdf && window.jspdf.jsPDF;
+      if (!J) { window.print(); return; }
+      var doc = new J({ unit: "pt", format: "letter" });
+      var W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 48, y = M + 6;
+      function np(need) { if (y + need > H - M) { doc.addPage(); y = M; } }
+      doc.setFont("times", "bold"); doc.setFontSize(18); doc.text("Credit Application", M, y); y += 18;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(110);
+      doc.text("Valet Auto Leasing  |  Downloaded " + new Date().toLocaleString(), M, y); y += 22; doc.setTextColor(0);
+      var nodes = document.querySelectorAll("h3.brass-rule, .field-label");
+      for (var i = 0; i < nodes.length; i++) {
+        var n = nodes[i];
+        if (n.tagName === "H3") {
+          np(44); y += 10;
+          doc.setFont("times", "bold"); doc.setFontSize(13); doc.text(n.textContent.trim(), M, y); y += 6;
+          doc.setDrawColor(184, 147, 92); doc.line(M, y, W - M, y); y += 16;
+          continue;
+        }
+        var label = n.textContent.trim();
+        var valEl = n.nextElementSibling;
+        var val = valEl ? valEl.textContent.trim() : "";
+        doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+        var lines = doc.splitTextToSize(val || "-", W - M * 2 - 170);
+        np(14 * lines.length + 4);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(90);
+        doc.text(label, M, y);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(0);
+        doc.text(lines, M + 170, y);
+        y += 14 * lines.length + 2;
+      }
+      var nm = String((v && v.primary_full_name) || "Applicant").replace(/[^A-Za-z0-9]+/g, "_");
+      doc.save("CreditApp_" + nm + "_" + new Date().toISOString().slice(0, 10) + ".pdf");
+    } catch (e) { window.print(); }
+  }
+  if (window.jspdf && window.jspdf.jsPDF) { run(); return; }
+  var s = document.createElement("script");
+  s.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+  s.onload = run;
+  s.onerror = function () { window.print(); };
+  document.head.appendChild(s);
+};
+</script>
 </head>
 <body>
 <noscript>
@@ -764,7 +809,7 @@ function ADM() {
     ]) : null;
     return React.createElement("div", { className: "min-h-screen pt-[110px] pb-24 bg-cream" },
       React.createElement("div", { className: "max-w-[920px] mx-auto px-6 lg:px-10" },
-        React.createElement("button", { onClick: () => setView(null), className: "text-charcoal/60 hover:text-brass-deep text-sm tracking-wide mb-6" }, "\u2190 Back to leads"),
+        React.createElement("button", { onClick: () => setView(null), className: "text-charcoal/60 hover:text-brass-deep text-sm tracking-wide mb-6" }, "\u2190 Back to leads"), React.createElement("button", { onClick: function () { if (window.valCreditPdf) window.valCreditPdf(v); }, className: "ml-6 text-brass-deep hover:text-charcoal text-sm tracking-wide mb-6 underline" }, "Download PDF"),
         React.createElement("div", { className: "flex items-center justify-between flex-wrap gap-3" },
           React.createElement("h1", { className: "font-serif text-3xl" }, v.primary_full_name || "Application"),
           React.createElement("span", { className: "eyebrow" }, (v.is_joint ? "Joint" : "Single") + " \u00b7 " + (v.status || "new"))),
